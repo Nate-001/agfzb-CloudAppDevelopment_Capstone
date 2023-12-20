@@ -102,7 +102,13 @@ def registration_request(request):
 def get_dealerships(request):
     context = {}
     if request.method == "GET":
+        # Update the endpoint URL here
+        endpoint_url = "https://nathanieldro-3000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/dealerships/get"
+        
+        # Use the updated endpoint URL in the render function
+        context['endpoint_url'] = endpoint_url
         return render(request, 'djangoapp/index.html', context)
+
 
 
 # Create a `get_dealer_details` view to render the reviews of a dealer
