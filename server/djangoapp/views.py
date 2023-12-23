@@ -8,9 +8,13 @@ from django.contrib import messages
 from datetime import datetime
 import logging
 import json
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 # from .restapis import related methods
-from .restapis import get_dealers_from_cf
+from .restapis import get_dealers_from_cf, get_dealer_reviews_from_cf, post_request
+from django.contrib.auth.decorators import login_required
+import requests
+from flask import Flask, request, jsonify, abort
+
 
 
 # Get an instance of a logger
@@ -106,7 +110,7 @@ def get_dealerships(request):
         # Get dealers from the URL
         dealerships = get_dealers_from_cf(url)
         # Concat all dealer's short name
-        dealer_names = ' '.join([dealer.short_name for dealer in dealerships])
+        dealer_names = ' '.join([dealer.full_name for dealer in dealerships])
         # Return a list of dealer short name
         return HttpResponse(dealer_names)
 
@@ -117,21 +121,57 @@ def get_dealerships(request):
 # Create a `get_dealer_details` view to render the reviews of a dealer
 # def get_dealer_details(request, dealer_id):
 def get_dealer_details(request, dealer_id):
-    # Retrieve the dealer object or return a 404 error if not found
-    dealer = get_object_or_404(Dealer, pk=dealer_id)
+    # Assuming you have a variable `url` representing the endpoint for dealer reviews
+    url = "https://nathanieldro-5000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/get_reviews"
 
-    # Retrieve all reviews associated with the dealer
-    reviews = DealerReview.objects.filter(dealer=dealer)
+    # Call the get_dealer_reviews_from_cf method to retrieve reviews for the specified dealer_id
+    reviews = get_dealer_reviews_from_cf(url, dealer_id)
 
-    # You can customize the context based on your needs
+    # Assuming you have a context variable named `context` to store the reviews
     context = {
-        'dealer': dealer,
-        'reviews': reviews,
+        'dealer_reviews': reviews,
     }
 
-    return render(request, 'djangoapp/index.html', context)
+    # Print sentiment for each review
+    for review in reviews:
+        print(f"Review ID: {review.review_id}, Sentiment: {review.sentiment}")
+
+    # Return the reviews in the HttpResponse
+    return HttpResponse(context['dealer_reviews'])
 
 # Create a `add_review` view to submit a review
 # def add_review(request, dealer_id):
+def add_review(request, dealer_id):
+    # Check if the user is authenticated
+    if not request.user.is_authenticated:
+        return HttpResponse("Authentication required to add a review", status=401)
+
+    # Create a dictionary object for the review
+    json_payload  = {
+        "id": dealer_id,  # Use the dealer_id as the review id, adjust as needed
+        "name": request.user.username,  # Assuming the username is used as the name
+        "dealership": dealer_id,
+        "review": "This is a great car dealer",  # Replace with the actual review text
+        "purchase": "Some purchase info",
+        "another": "field",  # Add other attributes as needed
+        "purchase_date": datetime.utcnow().isoformat(),
+        "car_make": "Toyota",
+        "car_model": "Camry",
+        "car_year": 2022,
+    }
 
 
+    # Assuming you have a variable `url` representing the Flask API endpoint for posting reviews
+    url = "https://nathanieldro-5000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/post_review"
+
+    # Make a POST request to the Flask API endpoint
+    response = post_request(url, json_payload, dealer_id=dealer_id)
+
+    if response.status_code == 201:
+        # Optionally, you can print the response to the console
+        print(response.json())
+
+        # Return the result of the post_request to the client
+        return HttpResponse(response.text, status=response.status_code)
+    else:
+        return HttpResponse("Error adding review", status=500)
