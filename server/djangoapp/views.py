@@ -10,10 +10,12 @@ import logging
 import json
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 # from .restapis import related methods
+from .models import CarModel
 from .restapis import get_dealers_from_cf, get_dealer_reviews_from_cf, post_request
 from django.contrib.auth.decorators import login_required
 import requests
-from flask import Flask, request, jsonify, abort
+#from flask import Flask, request, jsonify, abort
+
 
 
 
@@ -109,10 +111,20 @@ def get_dealerships(request):
         url = "https://nathanieldro-3000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/dealerships/get"
         # Get dealers from the URL
         dealerships = get_dealers_from_cf(url)
-        # Concat all dealer's short name
-        dealer_names = ' '.join([dealer.full_name for dealer in dealerships])
-        # Return a list of dealer short name
-        return HttpResponse(dealer_names)
+        
+        # Create an empty context dictionary
+        context = {}
+        
+        print(dealerships)
+
+         # Create an empty context dictionary
+        context = {'dealerships': dealerships}
+        
+        # Print the context to the console
+        print("Context:", context)
+        
+        # Update the return statement to use render with the context
+        return render(request, 'djangoapp/index.html', context)
 
 
 
@@ -127,8 +139,9 @@ def get_dealer_details(request, dealer_id):
     # Call the get_dealer_reviews_from_cf method to retrieve reviews for the specified dealer_id
     reviews = get_dealer_reviews_from_cf(url, dealer_id)
 
-    # Assuming you have a context variable named `context` to store the reviews
+    # Create a context dictionary to store the reviews
     context = {
+        'dealer_id': dealer_id,
         'dealer_reviews': reviews,
     }
 
@@ -137,7 +150,7 @@ def get_dealer_details(request, dealer_id):
         print(f"Review ID: {review.review_id}, Sentiment: {review.sentiment}")
 
     # Return the reviews in the HttpResponse
-    return HttpResponse(context['dealer_reviews'])
+    return render(request, 'djangoapp/dealer_details.html', context)
 
 # Create a `add_review` view to submit a review
 # def add_review(request, dealer_id):
@@ -146,32 +159,56 @@ def add_review(request, dealer_id):
     if not request.user.is_authenticated:
         return HttpResponse("Authentication required to add a review", status=401)
 
-    # Create a dictionary object for the review
-    json_payload  = {
-        "id": dealer_id,  # Use the dealer_id as the review id, adjust as needed
-        "name": request.user.username,  # Assuming the username is used as the name
-        "dealership": dealer_id,
-        "review": "This is a great car dealer",  # Replace with the actual review text
-        "purchase": "Some purchase info",
-        "another": "field",  # Add other attributes as needed
-        "purchase_date": datetime.utcnow().isoformat(),
-        "car_make": "Toyota",
-        "car_model": "Camry",
-        "car_year": 2022,
-    }
+    # Handle GET request
+    if request.method == 'GET':
+        # Query cars with the dealer id to be reviewed
+        # You need to replace this with your actual model and field names
+        cars = CarModel.objects.filter(dealer_id=dealer_id)
+        
+        # Append the queried cars into context
+        context = {'cars': cars,'dealer_id': dealer_id}
+        
+        # Render the add_review.html template with the context
+        return render(request, 'djangoapp/add_review.html', context)
 
+    # Handle POST request
+    elif request.method == 'POST':
+        # Extract values from the review form
+        review_content = request.POST.get('content')
+        purchase_check = request.POST.get('purchasecheck')
+        selected_car_id = request.POST.get('car')
+        purchase_date = request.POST.get('purchasedate')
 
-    # Assuming you have a variable `url` representing the Flask API endpoint for posting reviews
-    url = "https://nathanieldro-5000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/post_review"
+        # Query the selected car
+        selected_car = CarModel.objects.get(id=selected_car_id)
 
-    # Make a POST request to the Flask API endpoint
-    response = post_request(url, json_payload, dealer_id=dealer_id)
+        # Create a dictionary object for the review
+        json_payload = {
+            "id": dealer_id,  # Use the dealer_id as the review id, adjust as needed
+            "name": request.user.username,  # Assuming the username is used as the name
+            "dealership": dealer_id,
+            "review": review_content,
+            "purchase": purchase_check,
+            "another": "field",  # Add other attributes as needed
+            "purchase_date": datetime.utcnow().isoformat(),
+            "car_make": selected_car.car_make.name,
+            "car_model": selected_car.name,
+            "car_year": selected_car.year.strftime("%Y"),
+        }
 
-    if response.status_code == 201:
-        # Optionally, you can print the response to the console
-        print(response.json())
+        # Assuming you have a variable `url` representing the Flask API endpoint for posting reviews
+        url = "https://nathanieldro-5000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/post_review"
 
-        # Return the result of the post_request to the client
-        return HttpResponse(response.text, status=response.status_code)
-    else:
-        return HttpResponse("Error adding review", status=500)
+        # Make a POST request to the Flask API endpoint
+        response = post_request(url, json_payload, dealer_id=dealer_id)
+
+        if response.status_code == 201:
+            # Optionally, you can print the response to the console
+            print(response.json())
+
+            # Redirect user to the dealer details page
+            return redirect("djangoapp:dealer_details", dealer_id=dealer_id)
+        else:
+            print("Error adding review. Status code:", response.status_code)
+            print("Response content:", response.text)
+            return HttpResponse("Error adding review", status=500)

@@ -211,9 +211,6 @@ def get_dealer_reviews_from_cf(url, dealer_id, **kwargs):
 # def analyze_review_sentiments(text):
 # - Call get_request() with specified arguments
 # - Get the returned sentiment label such as Positive or Negative
-import requests
-from requests.auth import HTTPBasicAuth
-
 def analyze_review_sentiments(text):
     # Assuming you have the Watson NLU API endpoint and API key
     nlu_url = "https://api.au-syd.natural-language-understanding.watson.cloud.ibm.com/instances/4629c9ad-a213-4177-ae7d-a5cd6903f06c"
@@ -224,12 +221,29 @@ def analyze_review_sentiments(text):
         'version': '2021-08-01',
         'features': 'sentiment',
         'return_analyzed_text': True,
+    }
+
+    # Set the request headers
+    headers = {
+        'Content-Type': 'application/json',
+    }
+
+    # Set the request payload
+    data = {
         'text': text,
     }
 
-    # Make a call to the Watson NLU API endpoint with the specified parameters
-    response = requests.get(nlu_url, params=params, headers={'Content-Type': 'application/json'},
-                            auth=HTTPBasicAuth('apikey', api_key))
+    # Make a POST request to the Watson NLU API endpoint with the specified parameters
+    response = requests.post(
+        f"{nlu_url}/v1/analyze",
+        params=params,
+        headers=headers,
+        auth=HTTPBasicAuth('apikey', api_key),
+        json=data
+    )
+
+    # Print the response for troubleshooting
+    print(response.json())
 
     # Extract sentiment label from the response
     sentiment_label = response.json().get('sentiment', {}).get('document', {}).get('label', 'Unknown')
