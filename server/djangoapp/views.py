@@ -54,12 +54,12 @@ def login_request(request):
         if user is not None:
             # If user is valid, call login method to login current user
             login(request, user)
-            return redirect('djangoapp:get_dealer_details')
+            return redirect(request.META.get('HTTP_REFERER', '/'))
         else:
             # If not, return to login page again
-            return render(request, 'djangoapp/user_login.html', context)
+            return redirect(request.META.get('HTTP_REFERER', '/'))
     else:
-        return render(request, 'djangoapp/user_login.html', context)
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
 # Create a `logout_request` view to handle sign out request
 # def logout_request(request):
@@ -69,7 +69,7 @@ def logout_request(request):
     # Logout user in the request
     logout(request)
     # Redirect user back to course list view
-    return redirect('djangoapp:get_dealer_details')
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 # Create a `registration_request` view to handle sign up request
 # def registration_request(request):
@@ -100,7 +100,7 @@ def registration_request(request):
                                             password=password)
             # Login the user and redirect to course list page
             login(request, user)
-            return redirect("djangoapp:get_dealer_details")
+            return redirect("djangoapp:index")
         else:
             return render(request, 'djangoapp/registration.html', context)
 
@@ -108,7 +108,7 @@ def registration_request(request):
 # Update the `get_dealerships` view to render the index page with a list of dealerships
 def get_dealerships(request):
     if request.method == "GET":
-        url = "https://nathanieldro-3000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/dealerships/get"
+        url = "https://nathanieldro-3000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/dealerships/get"
         # Get dealers from the URL
         dealerships = get_dealers_from_cf(url)
         
@@ -134,7 +134,7 @@ def get_dealerships(request):
 # def get_dealer_details(request, dealer_id):
 def get_dealer_details(request, dealer_id):
     # Assuming you have a variable `url` representing the endpoint for dealer reviews
-    url = "https://nathanieldro-5000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/get_reviews"
+    url = "https://nathanieldro-5000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/get_reviews"
 
     # Call the get_dealer_reviews_from_cf method to retrieve reviews for the specified dealer_id
     reviews = get_dealer_reviews_from_cf(url, dealer_id)
@@ -197,7 +197,7 @@ def add_review(request, dealer_id):
         }
 
         # Assuming you have a variable `url` representing the Flask API endpoint for posting reviews
-        url = "https://nathanieldro-5000.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/post_review"
+        url = "https://nathanieldro-5000.theiadockernext-1-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai/api/post_review"
 
         # Make a POST request to the Flask API endpoint
         response = post_request(url, json_payload, dealer_id=dealer_id)

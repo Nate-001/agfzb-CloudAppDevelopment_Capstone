@@ -64,11 +64,11 @@ def post_review():
                 abort(400, description=f'Missing required field: {field}')
 
         # Print debug information
-        print("Review data received:", review_data)
+       
 
         # Save the review data as a new document in the Cloudant database
         # (You should replace this with your actual database logic)
-        # db.create_document(review_data)
+        db.create_document(review_data)
 
         return jsonify({"message": "Review posted successfully"}), 201
 
